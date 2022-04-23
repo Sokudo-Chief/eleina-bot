@@ -4,7 +4,8 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
 from datebase import visitors as v
 from datebase import books as b
-from keyboards import kb_general
+from datebase import logs as l
+from keyboards import kb_general, kb_cancel, kb_visitor, kb_book, kb_library
 
 class FSMClient(StatesGroup):
     number = State()
@@ -21,11 +22,23 @@ class FSMClient2(StatesGroup):
 async def send_welcome(message: types.Message):
     await message.reply("Привет, меня создал @sokudo_chief!", reply_markup=kb_general)
 
+async def send_visitor(message: types.Message):
+    await message.reply("Выбери нужный вариант.", reply_markup=kb_visitor)
+
+async def send_book(message: types.Message):
+    await message.reply("Выбери нужный вариант.", reply_markup=kb_book)
+
+async def send_library(message: types.Message):
+    await message.reply("Выбери нужный вариант.", reply_markup=kb_library)
+
+async def send_menu(message: types.Message):
+    await message.reply("Меню", reply_markup=kb_general)
+
 #---------------------------------------------------------------------
 
 async def upload(message: types.Message):
     await FSMClient.number.set()
-    await message.reply("Введите номер посетителя")
+    await message.reply("Введите номер посетителя", reply_markup=kb_cancel)
 
 async def insert_number(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -63,7 +76,7 @@ async def insert_adress(message: types.Message, state: FSMContext):
 
 async def upload2(message: types.Message):
     await FSMClient2.name_book.set()
-    await message.reply("Введите название книги")
+    await message.reply("Введите название книги", reply_markup=kb_cancel)
 
 async def insert_name_book(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -92,7 +105,7 @@ async def insert_toms(message: types.Message, state: FSMContext):
 
 #---------------------------------------------------------------------
 
-async def send_visitors(message: types.Message):
+async def select_visitors(message: types.Message):
     visitors = v.SelectTable()
     answer = ''
     for visitor in visitors:
@@ -100,13 +113,35 @@ async def send_visitors(message: types.Message):
     print(answer)
     await message.reply(answer[:-1])
 
-async def send_books(message: types.Message):
+async def select_books(message: types.Message):
     books = b.SelectTable()
     answer = ''
     for book in books:
         answer = answer + str(book[0]) + ': "' + book[1] + '", ' + book[2] + ', ' + str(book[3]) + '\n'
     print(answer)
     await message.reply(answer[:-1])
+
+async def select_library(message: types.Message):
+    visitors = v.SelectTable()
+    answer = ''
+
+    try:
+
+        for visitor in visitors:
+            
+            visitor = v.recordNumber(visitor[0])
+            sLogs = l.selectLogs(visitor)
+            answer = answer + visitor[0][1] + ': ' 
+
+            for book in sLogs:
+                kniga = b.recordID(book[4])[0][1]
+                answer = answer + str(kniga) + '; '
+
+            answer = answer + '\n'
+
+    except IndexError:
+        answer = answer + str(visitor[0][1]) + ': книг нет.\n'
+    await message.reply(answer)
 
 #---------------------------------------------------------------------
 
@@ -118,28 +153,41 @@ async def cancel(message: types.Message, state: FSMContext):
     await message.reply("Отменено", reply_markup=kb_general)
 
 
-async def echo(message: types.Message):
-    await message.answer(message.text)
 
 
 def register_handlers(dp: Dispatcher):
     dp.register_message_handler(cancel, commands=['cancel'], state='*')
-    dp.register_message_handler(cancel, Text(equals='cancel', ignore_case=True), state='*')
+    dp.register_message_handler(cancel, Text(equals='Cancel', ignore_case=True), state='*')
 
     dp.register_message_handler(send_welcome, commands=['start'])
-    dp.register_message_handler(send_visitors, commands=['visitors'])
-    dp.register_message_handler(send_books, commands=['books'])
+    dp.register_message_handler(send_welcome, Text(equals='start', ignore_case=True))
+    dp.register_message_handler(send_visitor, commands=['visitors'])
+    dp.register_message_handler(send_visitor, Text(equals='Visitors', ignore_case=True))
+    dp.register_message_handler(send_book, commands=['books'])
+    dp.register_message_handler(send_book, Text(equals='Books', ignore_case=True))
+    dp.register_message_handler(send_library, commands=['library'])
+    dp.register_message_handler(send_library, Text(equals='Library', ignore_case=True))
+    dp.register_message_handler(send_menu, commands=['menu'])
+    dp.register_message_handler(send_menu, Text(equals='Menu', ignore_case=True))
 
-    dp.register_message_handler(upload, commands=['visitor'], state=None)
+    dp.register_message_handler(select_visitors, commands=['show_visitors'])
+    dp.register_message_handler(select_visitors, Text(equals='Show visitors', ignore_case=True))
+    dp.register_message_handler(select_books, commands=['show_books'])
+    dp.register_message_handler(select_books, Text(equals='Show books', ignore_case=True))
+    dp.register_message_handler(select_library, commands=['show_library'])
+    dp.register_message_handler(select_library, Text(equals='Show library', ignore_case=True))
+
+    dp.register_message_handler(upload, commands=['add_visitor'], state=None)
+    dp.register_message_handler(upload, Text(equals='Add visitor', ignore_case=True))
     dp.register_message_handler(insert_number, state=FSMClient.number)
     dp.register_message_handler(insert_name, state=FSMClient.vis_name)
     dp.register_message_handler(insert_surname, state=FSMClient.surname)
     dp.register_message_handler(insert_adress, state=FSMClient.adress)
 
-    dp.register_message_handler(upload2, commands=['book'], state=None)
+    dp.register_message_handler(upload2, commands=['add_book'], state=None)
+    dp.register_message_handler(upload2, Text(equals='Add book', ignore_case=True))
     dp.register_message_handler(insert_name_book, state=FSMClient2.name_book)
     dp.register_message_handler(insert_author, state=FSMClient2.author)
     dp.register_message_handler(insert_toms, state=FSMClient2.toms)
 
-    dp.register_message_handler(echo)
     

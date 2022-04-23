@@ -1,1 +1,1 @@
-from keyboards.client import kb_general
+from keyboards.client import kb_general, kb_cancel, kb_visitor, kb_book, kb_library

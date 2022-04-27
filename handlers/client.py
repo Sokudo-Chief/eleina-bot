@@ -1,3 +1,4 @@
+from re import I
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -17,6 +18,20 @@ class FSMClient2(StatesGroup):
     name_book = State()
     author = State()
     toms = State()
+
+class FSMClient3(StatesGroup):
+    search = State()
+
+class FSMClient4(StatesGroup):
+    search2 = State()
+
+class FSMClient5(StatesGroup):
+    name_book = State()
+    vis_name = State()
+
+class FSMClient6(StatesGroup):
+    search3 = State()
+
 
 
 async def send_welcome(message: types.Message):
@@ -105,6 +120,95 @@ async def insert_toms(message: types.Message, state: FSMContext):
 
 #---------------------------------------------------------------------
 
+async def upload3(message: types.Message):
+    await FSMClient5.name_book.set()
+    await message.reply("Введите айди книги", reply_markup=kb_cancel)
+
+async def insert_name_book2(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['Айди'] = message.text
+    await FSMClient5.next()
+    await message.reply("Введите номер посетителя")
+
+async def insert_number_visitor(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['Номер'] = message.text
+
+        id = int(data.get('Айди'))
+        number = int(data.get('Номер'))
+        
+        id = b.recordID(id)
+        print(id)
+        number = v.recordNumber(number)
+        print(number)
+        l.addBook(id, number)
+        answer = 'Книга ' + id[0][1] + ' добавлена к посетителю ' + number[0][1]
+        print(answer)
+        await message.answer(answer, reply_markup=kb_general)
+    await state.finish()
+
+#---------------------------------------------------------------------
+
+async def search_visitor(message: types.Message):
+    await FSMClient3.search.set()
+    await message.reply("Введите номер посетителя", reply_markup=kb_cancel)
+
+async def number_visitor(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['Запрос'] = message.text
+
+        search = int(data.get('Запрос'))
+        record = v.recordNumber(search)
+        answer = 'Номер: ' + str(record[0][0]) + '\n' + 'Имя: ' + record[0][1] + '\n' + 'Фамилия: ' + record[0][2] + '\n' + 'Адрес: ' + record[0][3]
+    await message.answer(answer, reply_markup=kb_general)
+    await state.finish()
+
+
+async def search_book_in_visitor(message: types.Message):
+    await FSMClient6.search3.set()
+    await message.reply("Введите номер посетителя", reply_markup=kb_cancel)
+
+async def number_visitor_in_library(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['Запрос'] = message.text
+
+        search = int(data.get('Запрос'))
+        record = v.recordNumber(search)
+        record = l.selectLogs(record)
+        print(record)
+    answer = ''
+    try:
+        visitor = v.recordNumber(search)
+        sLogs = l.selectLogs(visitor)
+        answer = answer + sLogs[0][1] + ': '
+
+        for book in sLogs:
+            kniga = b.recordID(book[4])[0][1]
+            answer = answer + str(kniga) + '; '
+    except IndexError:
+        answer = answer + str(visitor[0][1]) + ': книг нет.\n'
+        return
+
+    await message.answer(answer, reply_markup=kb_general)
+    await state.finish()
+
+
+async def search_book(message: types.Message):
+    await FSMClient4.search2.set()
+    await message.reply("Введите айди книги", reply_markup=kb_cancel)
+
+async def id_book(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['Запрос'] = message.text
+
+        search = int(data.get('Запрос'))
+        record = b.recordID(search)
+        answer = 'Айди: ' + str(record[0][0]) + '\n' + 'Название: ' + record[0][1] + '\n' + 'Автор: ' + record[0][2] + '\n' + 'Кол. Томов: ' + str(record[0][3])
+    await message.answer(answer, reply_markup=kb_general)
+    await state.finish()
+
+#---------------------------------------------------------------------
+
 async def select_visitors(message: types.Message):
     visitors = v.SelectTable()
     answer = ''
@@ -152,8 +256,7 @@ async def cancel(message: types.Message, state: FSMContext):
     await state.finish()
     await message.reply("Отменено", reply_markup=kb_general)
 
-
-
+#---------------------------------------------------------------------
 
 def register_handlers(dp: Dispatcher):
     dp.register_message_handler(cancel, commands=['cancel'], state='*')
@@ -169,6 +272,18 @@ def register_handlers(dp: Dispatcher):
     dp.register_message_handler(send_library, Text(equals='Library', ignore_case=True))
     dp.register_message_handler(send_menu, commands=['menu'])
     dp.register_message_handler(send_menu, Text(equals='Menu', ignore_case=True))
+
+    dp.register_message_handler(search_visitor, commands=['search_visitor'])
+    dp.register_message_handler(search_visitor, Text(equals='Search visitor', ignore_case=True))
+    dp.register_message_handler(number_visitor, state=FSMClient3.search)
+
+    dp.register_message_handler(search_book, commands=['search_book'])
+    dp.register_message_handler(search_book, Text(equals='Search book', ignore_case=True))
+    dp.register_message_handler(id_book, state=FSMClient4.search2)
+
+    dp.register_message_handler(search_book_in_visitor, commands=['search_library'])
+    dp.register_message_handler(search_book_in_visitor, Text(equals='Search library', ignore_case=True))
+    dp.register_message_handler(number_visitor_in_library, state=FSMClient6.search3)
 
     dp.register_message_handler(select_visitors, commands=['show_visitors'])
     dp.register_message_handler(select_visitors, Text(equals='Show visitors', ignore_case=True))
@@ -189,5 +304,10 @@ def register_handlers(dp: Dispatcher):
     dp.register_message_handler(insert_name_book, state=FSMClient2.name_book)
     dp.register_message_handler(insert_author, state=FSMClient2.author)
     dp.register_message_handler(insert_toms, state=FSMClient2.toms)
+
+    dp.register_message_handler(upload3, commands=['add_book_for_visitor'], state=None)
+    dp.register_message_handler(upload3, Text(equals='Add book for visitor', ignore_case=True))
+    dp.register_message_handler(insert_name_book2, state=FSMClient5.name_book)
+    dp.register_message_handler(insert_number_visitor, state=FSMClient5.vis_name)
 
     

@@ -47,7 +47,7 @@ def addBook(book_id: tuple, visitor_number: tuple):
         cursor = sqlite_connection.cursor()
 
         insert_query = "INSERT INTO logs (id, book_id, visitor_number) VALUES (?, ?, ?);"
-        cursor.execute(insert_query, (maxID()+1, book_id[0], visitor_number[0][0]))
+        cursor.execute(insert_query, (maxID()+1, book_id[0][0], visitor_number[0][0]))
         sqlite_connection.commit()
         cursor.close()
         # print("Книга", book_id[1], "для посетителя", visitor_number[0][1], "успешна добавлена.")
